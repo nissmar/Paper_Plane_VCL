@@ -47,9 +47,9 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
 void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_structure &scene, gui_structure &)
 {
     const float t = timer.t;
-    pphy.alphaR = 3.14f / 6;
-    pphy.alphaL = 3.14f / 6;
-    // pphy.alphaL = 3.14f/6+sin(t);
+    pphy.alphaR = 3.14f/4+0.5*sin(4*t);
+    // pphy.alphaL = 3.14f / 6;
+    pphy.alphaL = 3.14f/4+0.5*sin(4*t);
 
     //matrices pour le dessin
     mat3 const Symmetry = {1, 0, 0, 0, 1, 0, 0, 0, -1};
@@ -192,7 +192,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //rotation
     const vec3 Righting = M_wing * cross(direction, pphy.v);                                                                                             //moment du vent sur les ailes
     const vec3 Flaps = M_wing * flap_wing_ratio * cross(pphy.v, rotation_from_axis_angle_mat3(lateral, (pphy.alphaR + pphy.alphaL) / 2.0f) * direction); //moment des flaps
-    const vec3 FlapsRot = M_wing * flap_wing_ratio * dot(pphy.v, (pphy.alphaR - pphy.alphaL) * direction) * direction;                                   //moment des flaps
+    const vec3 FlapsRot = M_wing * flap_wing_ratio * dot(pphy.v, (- pphy.alphaR + pphy.alphaL) * direction) * direction;                                   //moment des flaps
     const vec3 RDrag = frott(pphy.w, rot_drag);
     const vec3 Mt = Righting + Flaps + FlapsRot + RDrag;
     pphy.w += dt * Mt / I;
@@ -211,10 +211,11 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //camera
     // cphy.v += -dt*(cphy.p+pphy.p)*100;
     // cphy.p += cphy.v*dt;
-    cphy.p = -pphy.p + direction * 4;
+    cphy.p = -pphy.p + direction * 2;
     cphy.r = rotation_from_axis_angle_mat3(global_z, pphy.w[2] * dt) * cphy.r;
-    // cphy.r = rotation_from_axis_angle_mat3(global_y, pphy.w[1]*dt)*cphy.r;
-    // cphy.r = rotation_from_axis_angle_mat3(global_x, pphy.w[0]/1.5*dt)*cphy.r;
+    cphy.r = rotation_from_axis_angle_mat3(global_y, pphy.w[1] * dt) * cphy.r;
+    cphy.r = rotation_from_axis_angle_mat3(global_x, pphy.w[0] * dt) * cphy.r;
+
 }
 
 mesh create_quad(vec3 p1, vec3 p2, vec3 p3, vec3 p4)
@@ -289,22 +290,22 @@ vcl::hierarchy_mesh_drawable create_plane()
     vec3 p5 = {0.3f, height, 0.06f};
     vec3 p6 = {-0.06, height, 0.05f};
     vec3 p7 = {-0.06, height, wing_back - 0.05f};
-    // mesh_drawable sideR = mesh_drawable(mesh_primitive_quad(p0, p1, p2, p3));
-    mesh_drawable sideR =create_quad(p3,p2,p1,p0);
+    mesh_drawable sideR = mesh_drawable(mesh_primitive_quad(p0, p1, p2, p3));
+    // mesh_drawable sideR =create_quad(p3,p2,p1,p0);
     sideR.uniform.shading.ambiant = diffuse;
 
     planem.add(sideR, "sideR", "body");
     planem.add(sideR, "sideL", "body");
 
-    // mesh_drawable wing = mesh_drawable(mesh_primitive_quad(p2, p3, p4, p5));
-    mesh_drawable wing = create_quad(p2,p3,p4,p5);
+    mesh_drawable wing = mesh_drawable(mesh_primitive_quad(p2, p3, p4, p5));
+    // mesh_drawable wing = create_quad(p2,p3,p4,p5);
     wing.uniform.shading.ambiant = diffuse;
 
     planem.add(wing, "wingR", "sideR");
     planem.add(wing, "wingL", "sideL");
 
-    // mesh_drawable flap = mesh_drawable(mesh_primitive_quad(p4, p3, p6, p7));
-    mesh_drawable flap = create_quad(p4,p3,p6,p7);
+    mesh_drawable flap = mesh_drawable(mesh_primitive_quad(p4, p3, p6, p7));
+    // mesh_drawable flap = create_quad(p4,p3,p6,p7);
     flap.uniform.shading.ambiant = diffuse;
 
     planem.add(flap, "flapL", "wingL");
