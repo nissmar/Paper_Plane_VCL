@@ -4,6 +4,8 @@
 
 #ifdef SCENE_AVION
 
+
+
 struct plane_physics
 {   
     vcl::vec3 p; // Position

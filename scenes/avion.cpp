@@ -358,10 +358,10 @@ vcl::hierarchy_mesh_drawable create_plane()
 float evaluate_terrain_z(float u, float v)
 {
     // get gui parameters
-    const float scaling = 2;
+    const float scaling = 10.0f;
     const int octave = 5;
-    const float persistency = 0.5;
-    const float height = 1;
+    const float persistency = 0.2;
+    const float height = 10;
     // Evaluate Perlin noise
     const float noise = perlin(scaling * u, scaling * v, octave, persistency);
     return height * noise;
@@ -369,7 +369,7 @@ float evaluate_terrain_z(float u, float v)
 
 vec3 evaluate_terrain(float u, float v)
 {
-    const float terrain_size = 100;
+    const float terrain_size = 1000;
     const float z0 = -40;
 
     const float x = terrain_size * (u - 0.5f);
@@ -382,7 +382,7 @@ vec3 evaluate_terrain(float u, float v)
 mesh create_terrain()
 {
     // Number of samples of the terrain is N x N
-    const size_t N = 100;
+    const size_t N = 150;
 
     mesh terrain; // temporary terrain storage (CPU only)
     terrain.position.resize(N * N);
@@ -401,7 +401,7 @@ mesh create_terrain()
             terrain.position[kv + N * ku] = evaluate_terrain(u, v);
 
             //terrain.texture_uv[kv + N * ku] = vec2({ 1.0f*ku ,1.0f *kv });
-            terrain.texture_uv[kv + N * ku] = vec2({0.05f * ku, 0.05f * kv});
+            terrain.texture_uv[kv + N * ku] = vec2({0.2f * ku, 0.2f * kv});
         }
     }
 
@@ -589,7 +589,7 @@ mesh create_tree_foliage(float radius, float height, float z_offset)
 std::vector<vcl::vec3> update_tree_position()
 {
 
-    int nbArbre = 10;
+    int nbArbre = 200;
     std::vector<vcl::vec3> pos;
     srand(6095);
     const float u = (rand() % 100) / 100.0f;
@@ -604,7 +604,7 @@ std::vector<vcl::vec3> update_tree_position()
         int test = 1;
         for (vec3 p : pos)
         {
-            if (p.x * p.x + p.z * p.z - u * u - v * v < 2.0f)
+            if (p.x * p.x + p.z * p.z - u * u - v * v < 10.0f)
             {
                 test = 0;
                 break;
