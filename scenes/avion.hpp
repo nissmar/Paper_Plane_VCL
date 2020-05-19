@@ -12,7 +12,7 @@ struct plane_physics
     vcl::mat3 r; // rotation``
     float alpha; //angle flaps 
     float alphaR; //angle flaps
-    float alphaL; //angle flaps  
+    float alphaL; //angle flaps 
 };
 
 struct camera_physics

@@ -123,7 +123,6 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         double vert_rot = 0.0;
         
         vert_rot = 0.0;
-
         if (abs(pphy.p[0])>0.000001) {
             vert_rot = atan(pphy.p[1]/abs(pphy.p[0]));
 
@@ -146,12 +145,12 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
         pphy.alphaR -= step;
     }
     else if (key==263) {
-        pphy.alphaL -= step;
-        pphy.alphaR += step;
+        pphy.alphaL -= 0.1*step;
+        pphy.alphaR += 0.1*step;
     }
     else if (key==262) {
-        pphy.alphaL += step;
-        pphy.alphaR -= step;
+        pphy.alphaL += 0.1*step;
+        pphy.alphaR -= 0.1*step;
     }
    
 }
@@ -186,26 +185,23 @@ static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy
 void init_phy_cam(plane_physics &pphy, camera_physics &cphy)
 {
     float yaw = 0;
+    float pitch = 3.14f/8;
 
     //Initialisation du modèle physique
-    pphy.alphaL = 3.14f / 6;
-    pphy.alphaR = 3.14f / 6;
+    pphy.alphaL = 3.14f / 8;
+    pphy.alphaR = 3.14f / 8;
 
-    pphy.p = {0, 0, 0};
-    pphy.v = {4.0f, 0.0f, 0};
+    pphy.p = {-20.0f, 0, 0};
+    pphy.v = {10.0f, 0.0f, 0};
     pphy.w = {0, 0, 0};
     // pphy.r = rotation_from_axis_angle_mat3({0,1,0}, M_PI )*rotation_from_axis_angle_mat3({1,0,0}, M_PI/4 );;
-    pphy.r = rotation_from_axis_angle_mat3({0, 1, 0}, yaw);
+    pphy.r = rotation_from_axis_angle_mat3({0, 0, 1}, pitch)*rotation_from_axis_angle_mat3({0, 1, 0}, yaw);
 
     //Initialisation de la caméra
     cphy.v = {0, 0, 0};
     cphy.r = rotation_from_axis_angle_mat3({0, 1, 0}, yaw - M_PI / 2);
-    // cphy.type = "fixed";
+    cphy.type = "follow";
 }
-
-
-
-
 
 vec3 frott(vec3 p, float c)
 {
@@ -217,12 +213,13 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //variables
     const float m = 0.05f;              //masse : ne pas trop changer
     const float I = 0.01f;              //moment d'inertie
-    const float drag_coeff = 0.0003f;   //trainée
-    const float aero_coeff = 1.0f;      //"portance"
+    const float aero_coeff = 0.3f;      //"portance"
     const float thrust_coeff = 0.01f;   //poussée
     const float M_wing = 0.8f;          //coefficient du moment des ailes
     const float flap_wing_ratio = 0.3f; //rapport entre le coeff des flaps et des ailes
-    const float rot_drag = 0.3f;
+    const float rot_drag = 1.0f;
+    const vec3 gravity = {0, -9.81f, 0};
+
 
     //vecteurs utiles
     const vec3 global_x = {1.0f, 0, 0};
@@ -243,12 +240,10 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     pphy.r = rotation_from_axis_angle_mat3(global_y, pphy.w[1] * dt) * rotation_from_axis_angle_mat3(global_x, pphy.w[0] * dt) * rotation_from_axis_angle_mat3(global_z, pphy.w[2] * dt) * pphy.r;
 
     //translation
-    const vec3 gravity = {0, -9.81f, 0};
     const vec3 Weight = m * gravity;
-    const vec3 Aero = aero_coeff * penetration * normal;
-    const vec3 Drag = frott(pphy.v, drag_coeff);
+    const vec3 Aero = aero_coeff * penetration * (normal+ 0.0000001*direction);
     const vec3 Thrust = thrust_coeff * direction;
-    const vec3 Ft = Weight + Aero + Drag + Thrust;
+    const vec3 Ft = Weight + Aero + Thrust;
     pphy.v += dt * Ft / m;
     pphy.p += pphy.v * dt;
 
@@ -361,22 +356,23 @@ vcl::hierarchy_mesh_drawable create_plane()
 float evaluate_terrain_z(float u, float v)
 {
     // get gui parameters
-    const float z0 = -10;
     const float scaling = 2;
     const int octave = 5;
     const float persistency = 0.5;
     const float height = 1;
     // Evaluate Perlin noise
     const float noise = perlin(scaling * u, scaling * v, octave, persistency);
-    return z0 + height * noise;
+    return height * noise;
 }
 
 vec3 evaluate_terrain(float u, float v)
 {
-    const float terrain_size = 50;
+    const float terrain_size = 100;
+    const float z0 = -40;
+
     const float x = terrain_size * (u - 0.5f);
     const float y = terrain_size * (v - 0.5f);
-    const float z = evaluate_terrain_z(u, v);
+    const float z = evaluate_terrain_z(u, v) + z0;
 
     return {x, z, y};
 }
