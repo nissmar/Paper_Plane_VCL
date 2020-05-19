@@ -41,6 +41,9 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     tree_position = update_tree_position();
     trunk = create_tree();
     trunk.uniform.color = {0.38f, 0.2f, 0.07f};
+    trunk.uniform.transform.rotation = rotation_from_axis_angle_mat3({1, 0, 0}, -M_PI / 2);
+    trunk.uniform.transform.scaling = 10.0f;
+
     texture_id = create_texture_gpu(image_load_png("scenes/textures/grass.png"));
 
     timer.stop();
@@ -103,7 +106,6 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     glPolygonOffset(1.0, 1.0);
     draw(terrain, scene.camera, shaders["mesh"]);
     glBindTexture(GL_TEXTURE_2D, scene.texture_white);
-    trunk.uniform.transform.rotation = rotation_from_axis_angle_mat3({1, 0, 0}, -M_PI / 2);
     for (vec3 pi : tree_position)
     {
         trunk.uniform.transform.translation = pi;
@@ -191,7 +193,7 @@ void init_phy_cam(plane_physics &pphy, camera_physics &cphy)
     pphy.alphaL = 3.14f / 8;
     pphy.alphaR = 3.14f / 8;
 
-    pphy.p = {-20.0f, 0, 0};
+    pphy.p = {-50.0f, 0, 0};
     pphy.v = {10.0f, 0.0f, 0};
     pphy.w = {0, 0, 0};
     // pphy.r = rotation_from_axis_angle_mat3({0,1,0}, M_PI )*rotation_from_axis_angle_mat3({1,0,0}, M_PI/4 );;
@@ -587,7 +589,7 @@ mesh create_tree_foliage(float radius, float height, float z_offset)
 std::vector<vcl::vec3> update_tree_position()
 {
 
-    int nbArbre = 60;
+    int nbArbre = 10;
     std::vector<vcl::vec3> pos;
     srand(6095);
     const float u = (rand() % 100) / 100.0f;
