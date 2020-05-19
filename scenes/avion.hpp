@@ -17,9 +17,11 @@ struct plane_physics
 
 struct camera_physics
 {   
+    vcl::vec3 p0; // Position initiale
     vcl::vec3 p; // Position
     vcl::vec3 v; // vitesse
     vcl::mat3 r; // rotation
+    vcl::mat3 r0; // rotation initiale
     std::string type;
 };
 
@@ -28,8 +30,7 @@ struct scene_model : scene_base
 
     void setup_data(std::map<std::string,GLuint>& shaders, scene_structure& scene, gui_structure& gui);
     void frame_draw(std::map<std::string,GLuint>& shaders, scene_structure& scene, gui_structure& gui);
-    
-  
+    void keyboard_input(scene_structure& scene, GLFWwindow* window, int key, int scancode, int action, int mods);
 
     float last_t = -1.0;
     vcl::timer_event timer;

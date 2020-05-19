@@ -92,7 +92,6 @@ int main()
         // Perform computation and draw calls for each iteration loop
         scene_current.frame_draw(shaders, scene, gui); opengl_debug();
 
-
         // Render GUI and update window
         ImGui::End();
         scene.camera_control.update = !(ImGui::IsAnyWindowFocused());
@@ -139,7 +138,5 @@ void mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 void keyboard_input_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    std::cout<<"press ";
-
     scene_current.keyboard_input(scene, window, key, scancode, action, mods);
 }

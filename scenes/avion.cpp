@@ -22,9 +22,11 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
 //mesh create_tree_foliage(float radius, float height, float z_offset);
 std::vector<vcl::vec3> update_tree_position();
 
-void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_structure &, gui_structure &)
+void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_structure &scene, gui_structure &)
 {
     //initialisation de la caméra et du modèle physique
+    cphy.p0 = scene.camera.translation;
+    cphy.r0 = scene.camera.orientation;
     init_phy_cam(pphy, cphy);
 
     //creation de l'avion
@@ -47,9 +49,8 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
 void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_structure &scene, gui_structure &)
 {
     const float t = timer.t;
-    pphy.alphaR = 3.14f/4+0.5*sin(4*t);
-    // pphy.alphaL = 3.14f / 6;
-    pphy.alphaL = 3.14f/4+0.5*sin(4*t);
+    // pphy.alphaR = 3.14f/4+sin(4*t);
+    // pphy.alphaL = 3.14f/4+sin(4*t);
 
     //matrices pour le dessin
     mat3 const Symmetry = {1, 0, 0, 0, 1, 0, 0, 0, -1};
@@ -117,6 +118,42 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         scene.camera.translation = cphy.p;
         scene.camera.orientation = cphy.r;
     }
+     if (cphy.type == "fixed") {
+        scene.camera.translation = cphy.p0;
+        double vert_rot = 0.0;
+        
+        vert_rot = 0.0;
+
+        if (abs(pphy.p[0])>0.000001) {
+            vert_rot = atan(pphy.p[1]/abs(pphy.p[0]));
+
+        }
+
+        double hor_rot= -atan(pphy.p[0]);
+        scene.camera.orientation = rotation_from_axis_angle_mat3({0, 0, 1}, vert_rot)*rotation_from_axis_angle_mat3({0, 1, 0}, hor_rot);
+    }
+}
+
+void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, int, int) {
+    std::cout << key << std::endl;
+    float step = 0.05;
+    if (key==265) {
+        pphy.alphaL += step;
+        pphy.alphaR += step;
+    }
+    else if (key==264) {
+        pphy.alphaL -= step;
+        pphy.alphaR -= step;
+    }
+    else if (key==263) {
+        pphy.alphaL -= step;
+        pphy.alphaR += step;
+    }
+    else if (key==262) {
+        pphy.alphaL += step;
+        pphy.alphaR -= step;
+    }
+   
 }
 
 /** Part specific GUI drawing */
@@ -132,8 +169,9 @@ static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy
         timer.stop();
     if (ImGui::Button("Start"))
         timer.start();
-    if (ImGui::Button("Reset"))
+    if (ImGui::Button("Reset")) {
         init_phy_cam(pphy, cphy);
+    }  
     if (ImGui::Button("Camera Position")) {
         if (cphy.type == "follow") {
             cphy.type = "fixed";
@@ -150,18 +188,24 @@ void init_phy_cam(plane_physics &pphy, camera_physics &cphy)
     float yaw = 0;
 
     //Initialisation du modèle physique
+    pphy.alphaL = 3.14f / 6;
+    pphy.alphaR = 3.14f / 6;
+
     pphy.p = {0, 0, 0};
-    pphy.v = {1.0f, 0.0f, 0};
+    pphy.v = {4.0f, 0.0f, 0};
     pphy.w = {0, 0, 0};
     // pphy.r = rotation_from_axis_angle_mat3({0,1,0}, M_PI )*rotation_from_axis_angle_mat3({1,0,0}, M_PI/4 );;
     pphy.r = rotation_from_axis_angle_mat3({0, 1, 0}, yaw);
 
     //Initialisation de la caméra
     cphy.v = {0, 0, 0};
-    cphy.p = {0, 0, 0};
     cphy.r = rotation_from_axis_angle_mat3({0, 1, 0}, yaw - M_PI / 2);
-    cphy.type = "fixed";
+    // cphy.type = "fixed";
 }
+
+
+
+
 
 vec3 frott(vec3 p, float c)
 {
@@ -317,7 +361,7 @@ vcl::hierarchy_mesh_drawable create_plane()
 float evaluate_terrain_z(float u, float v)
 {
     // get gui parameters
-    const float z0 = -5;
+    const float z0 = -10;
     const float scaling = 2;
     const int octave = 5;
     const float persistency = 0.5;
