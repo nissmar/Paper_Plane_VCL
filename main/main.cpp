@@ -78,6 +78,7 @@ int main()
 
     std::cout<<"*** Start GLFW animation loop ***"<<std::endl;
     vcl::glfw_fps_counter fps_counter;
+    // fps_counter.reset();
     while( !glfwWindowShouldClose(gui.window) )
     {
         opengl_debug();

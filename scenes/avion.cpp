@@ -84,7 +84,6 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     plane["flapL"].transform.translation = TotL.vec3();
 
     //pour la physique
-
     float dt = 0;
     if (last_t > 0)
     {
@@ -94,10 +93,17 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     for (int i = 0; i < steps; i++) {
         physic_model(pphy, cphy, dt / steps);
     }
-    
-    plane["body"].transform.translation = pphy.p;
-    plane["body"].transform.rotation = pphy.r;
+    float u = pphy.p[0]/1000 + 0.5f;
+    float v = pphy.p[2]/1000 + 0.5f;
+    if (pphy.p[1] - evaluate_terrain_z(u,v) < 0.1f) {
+        timer.stop();
+    }
+    else {
+        plane["body"].transform.translation = pphy.p;
+        plane["body"].transform.rotation = pphy.r;
 
+    }
+    
     timer.update();
     set_gui(timer,pphy,cphy);
     plane.update_local_to_global_coordinates();
@@ -168,6 +174,7 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     }
 
     skybox.uniform.transform.translation = -scene.camera.translation;
+   
 }
 
 void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, int action , int) {
@@ -199,6 +206,9 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
             plane["wingL"].element.uniform.color = {1.0f,1.0f,1.0};
         }
     }
+    else if (key==257) {
+        init_phy_cam(pphy, cphy);
+    }
     else {
         std::cout << key <<" pressed"<< std::endl;
     }
@@ -208,8 +218,8 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
 
 void scene_model::mouse_move(scene_structure&, GLFWwindow* window) {
     const vec2 cursor = glfw_cursor_coordinates_window(window);
-    float vert = 3.14f/2*cursor.y;
-    float hor = 0.5*cursor.x;
+    float vert = 3.14f/2*cursor.y*cursor.y*cursor.y;
+    float hor = (cursor.x)*(cursor.x)*(cursor.x);
     pphy.alphaL = vert + hor;
     pphy.alphaR = vert - hor;
 }
@@ -289,11 +299,10 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     const float I = 0.01f;              //moment d'inertie
     const float aero_coeff = 1.0f;      //"portance"
     const float thrust_coeff = pphy.boost;   //poussée
-    const float M_wing = 0.8f;          //coefficient du moment des ailes
+    const float M_wing = 1.0f;          //coefficient du moment des ailes
     const float flap_wing_ratio = 0.3f; //rapport entre le coeff des flaps et des ailes
     const float rot_drag = 0.8f;
     const vec3 gravity = {0, -9.81f, 0};
-
 
     //vecteurs utiles
     const vec3 global_x = {1.0f, 0, 0};
@@ -429,23 +438,24 @@ vcl::hierarchy_mesh_drawable create_plane()
 float evaluate_terrain_z(float u, float v)
 {
     // get gui parameters
+    const float z0 = -20;
+
     const float scaling = 10.0f;
     const int octave = 5;
     const float persistency = 0.2;
     const float height = 10;
     // Evaluate Perlin noise
     const float noise = perlin(scaling * u, scaling * v, octave, persistency);
-    return height * noise;
+    return height * noise + z0;
 }
 
 vec3 evaluate_terrain(float u, float v)
 {
     const float terrain_size = 1000;
-    const float z0 = -40;
 
-    const float x = terrain_size * (u - 0.5f);
+    const float x = terrain_size * (u - 0.5f); // u = x/terrain_size + 0.5f
     const float y = terrain_size * (v - 0.5f);
-    const float z = evaluate_terrain_z(u, v) + z0;
+    const float z = evaluate_terrain_z(u, v);
 
     return {x, z, y};
 }
@@ -660,11 +670,11 @@ mesh create_tree_foliage(float radius, float height, float z_offset)
 std::vector<vcl::vec3> update_tree_position()
 {
 
-    int nbArbre = 200;
+    int nbArbre = 50;
     std::vector<vcl::vec3> pos;
     srand(6095);
-    const float u = (rand() % 100) / 100.0f;
-    const float v = (rand() % 100) / 100.0f;
+    const float u = (rand() % 100) / 200.0f;
+    const float v = (rand() % 100) / 200.0f;
     pos.push_back(evaluate_terrain(u, v));
     int i = 1;
     while (i < nbArbre)
