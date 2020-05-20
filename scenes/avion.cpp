@@ -30,6 +30,8 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     scene.camera.perspective.z_far = 2000.0f;
     //initialisation de la caméra et du modèle physique
     init_phy_cam(pphy, cphy);
+    cphy.draw_skybox = true;
+    cphy.draw_tree_texture = true;
     scene.camera.translation = cphy.p;
     scene.camera.orientation = cphy.r;
 
@@ -106,8 +108,7 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     draw(plane, scene.camera);
     last_t = t;
 
-    //Pour les arbres
-
+    //Pour le terrain
     glEnable(GL_POLYGON_OFFSET_FILL); // avoids z-fighting when displaying wireframe
     glBindTexture(GL_TEXTURE_2D, texture_id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
@@ -116,17 +117,21 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     draw(terrain, scene.camera, shaders["mesh"]);
 
     //skybox
-    glEnable(GL_POLYGON_OFFSET_FILL); // avoids z-fighting when displaying wireframe
-    glBindTexture(GL_TEXTURE_2D, skybox_texture_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-    draw(skybox, scene.camera, shaders["mesh"]);
-
+    if (cphy.draw_skybox) {
+        glEnable(GL_POLYGON_OFFSET_FILL); // avoids z-fighting when displaying wireframe
+        glBindTexture(GL_TEXTURE_2D, skybox_texture_id);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+        draw(skybox, scene.camera, shaders["mesh"]);
+    }
 
     glBindTexture(GL_TEXTURE_2D, scene.texture_white);
 
 
-
+    //pour les arbres
+    if (cphy.draw_tree_texture) {
+        //A CHANGER
+    }
     for (vec3 pi : tree_position)
     {
         trunk.uniform.transform.translation = pi;
@@ -169,7 +174,8 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
     if (key==32) {
         if (action == 0) {
             if (timer.update() > 0.000001f) {
-            timer.stop();
+                timer.stop();
+                
             }
             else {
                 timer.start();
@@ -179,9 +185,18 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
     else if (key==66) {
         if (action == 1) {
             pphy.boost = 0.5f;
+            vec3 boostcolor =  {1.0f,0.7f,0.3f};
+            plane["flapR"].element.uniform.color = boostcolor;
+            plane["wingR"].element.uniform.color = boostcolor;
+            plane["flapL"].element.uniform.color = boostcolor;
+            plane["wingL"].element.uniform.color = boostcolor;
         }
         else if (action == 0) {
             pphy.boost = 0.0f;
+            plane["flapR"].element.uniform.color = {1.0f,1.0f,1.0};
+            plane["wingR"].element.uniform.color = {1.0f,1.0f,1.0};
+            plane["flapL"].element.uniform.color = {1.0f,1.0f,1.0};
+            plane["wingL"].element.uniform.color = {1.0f,1.0f,1.0};
         }
     }
     else {
@@ -203,19 +218,7 @@ void scene_model::mouse_move(scene_structure&, GLFWwindow* window) {
 static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy)
 {
     // Can set the speed of the animation
-    float scale_min = 0.05f;
-    float scale_max = 2.0f;
-    ImGui::SliderScalar("Time scale", ImGuiDataType_Float, &timer.scale, &scale_min, &scale_max, "%.2f s");
-
-    // Start and stop animation
-    if (ImGui::Button("Stop"))
-        timer.stop();
-    if (ImGui::Button("Start"))
-        timer.start();
-    if (ImGui::Button("Reset")) {
-        init_phy_cam(pphy, cphy);
-    }  
-    if (ImGui::Button("Camera Position")) {
+     if (ImGui::Button("Camera Position")) {
         if (cphy.type == "follow") {
             cphy.type = "fixed";
         }
@@ -223,6 +226,33 @@ static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy
             cphy.type = "follow";
         }
     }
+    float scale_min = 0.05f;
+    float scale_max = 2.0f;
+    ImGui::SliderScalar("Time scale", ImGuiDataType_Float, &timer.scale, &scale_min, &scale_max, "%.2f s");
+
+    ImGui::Text(" ");
+    ImGui::Text("Quality settings: "); 
+    ImGui::Checkbox("Skybox", &cphy.draw_skybox); ImGui::SameLine(); 
+    ImGui::Checkbox("Tree texture", &cphy.draw_tree_texture);  
+    ImGui::Text(" ");
+    // Start and stop animation
+    ImGui::Text("Animation: "); 
+
+    if (ImGui::Button("Start")) {
+        timer.start();
+    }
+    ImGui::SameLine();  
+    if (ImGui::Button("Stop")) {
+        timer.stop();
+    }
+    ImGui::SameLine(); 
+    if (ImGui::Button("Reset")) {
+        init_phy_cam(pphy, cphy);
+    }  
+
+
+   
+
 }
 
 
@@ -257,11 +287,11 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //variables
     const float m = 0.05f;              //masse : ne pas trop changer
     const float I = 0.01f;              //moment d'inertie
-    const float aero_coeff = 0.3f;      //"portance"
-    const float thrust_coeff = pphy.boost + 0.01f;   //poussée
+    const float aero_coeff = 1.0f;      //"portance"
+    const float thrust_coeff = pphy.boost;   //poussée
     const float M_wing = 0.8f;          //coefficient du moment des ailes
     const float flap_wing_ratio = 0.3f; //rapport entre le coeff des flaps et des ailes
-    const float rot_drag = 1.0f;
+    const float rot_drag = 0.8f;
     const vec3 gravity = {0, -9.81f, 0};
 
 
@@ -285,7 +315,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
 
     //translation
     const vec3 Weight = m * gravity;
-    const vec3 Aero = aero_coeff * penetration * (normal+ 0.0000001*direction);
+    const vec3 Aero = aero_coeff * penetration * normal;
     const vec3 Thrust = thrust_coeff * direction;
     const vec3 Ft = Weight + Aero + Thrust;
     pphy.v += dt * Ft / m;

@@ -25,6 +25,8 @@ struct camera_physics
     vcl::mat3 r; // rotation
     vcl::mat3 r0; // rotation initiale
     std::string type;
+    bool draw_skybox;
+    bool draw_tree_texture;
 };
 
 struct scene_model : scene_base

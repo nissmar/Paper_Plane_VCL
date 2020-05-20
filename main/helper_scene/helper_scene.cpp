@@ -101,7 +101,7 @@ void gui_start_basic_structure(gui_structure& gui, scene_structure& scene)
 
     ImGui::Begin("GUI",NULL,ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::Text("Frame: "); ImGui::SameLine();
+    ImGui::Text("Frame: "); 
     ImGui::Checkbox("Camera", &gui.show_frame_camera); ImGui::SameLine();
     ImGui::Checkbox("Worldspace", &gui.show_frame_worldspace);
     ImGui::Spacing();

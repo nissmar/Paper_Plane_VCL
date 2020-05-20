@@ -51,6 +51,7 @@ int main()
 
     // Initialize external libraries and window
     initialize_interface(gui);
+    gui.show_frame_camera = false;
 
     // Set GLFW events listener
     glfwSetCursorPosCallback(gui.window, cursor_position_callback );
