@@ -57,12 +57,6 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     foliage.uniform.color = { 1.0f, 1.0f, 1.0f,0.3f};
     foliage.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
 
-    texture_id = create_texture_gpu(image_load_png("scenes/textures/grass.png"));
-
-    foliage_texture_id = create_texture_gpu(image_load_png("scenes/textures/leaves.png"));
-
-
-
 
     //creation de la skybox
     skybox = create_skybox();
@@ -128,8 +122,8 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     //Pour le terrain
     glEnable(GL_POLYGON_OFFSET_FILL); // avoids z-fighting when displaying wireframe
     glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glPolygonOffset(1.0, 1.0);
     draw(terrain, scene.camera, shaders["mesh"]);
 
@@ -150,16 +144,15 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         //A CHANGER
     }
 
-     for (vec3 pi : tree_position)
+    for (vec3 pi : tree_position)
     {
         trunk.uniform.transform.translation = pi;
-        foliage.uniform.transform.translation = pi;
+        //foliage.uniform.transform.translation = pi + vec3({ 0.0f, 0.0f, 0.5f });
         draw(trunk, scene.camera, shaders["mesh"]);
         glBindTexture(GL_TEXTURE_2D, foliage_texture_id);
         draw(foliage, scene.camera, shaders["mesh"]);
         glBindTexture(GL_TEXTURE_2D, scene.texture_white);
-    }    }
-
+    }    
     //Pour la caméra
     if (cphy.type == "follow") {
         scene.camera.translation = cphy.p;
@@ -228,7 +221,6 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
     }
    
 }
-
 
 void scene_model::mouse_move(scene_structure&, GLFWwindow* window) {
     const vec2 cursor = glfw_cursor_coordinates_window(window);
@@ -525,8 +517,8 @@ mesh create_cylinder(vec3 p1, vec3 p2)
     // Number of samples
     const size_t N = 20;
 
-    float r1 = 1.0f * exp(-p1.z * p1.z / 100);
-    float r2 = 1.0f * exp(-p2.z * p2.z / 100);
+    float r1 = 0.1f * exp(-p1.z * p1.z);
+    float r2 = 0.1f * exp(-p2.z * p2.z);
     // Geometry
     for (size_t k = 0; k < N; ++k)
     {
@@ -561,7 +553,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
 {
     std::vector<vcl::vec3> listp;
     std::vector<vcl::vec3> suite;
-
+    std::cout << "appel avec steps=" << steps << std::endl;
     if (steps == 1)
     {
         for (int i = 0; i < nbBranch; i++)
@@ -572,6 +564,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
             float r = pow(height * height - h * h, 0.5);
 
             vec3 p2 = p + vec3{ r * std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h };
+
             listp.push_back(p2);
         }
         return listp;
@@ -581,10 +574,10 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
     {
         listp.push_back(p);
         angle = (rand() % 360) / 360.0f;
-        float h = (height / 1.618f);
+        float h = height / 1.618f;
         float r = pow(height * height - h * h, 0.5);
 
-        vec3 p2 = p + vec3{ r * std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h };
+        vec3 p2 = p + vec3{r * std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h};
         listp.push_back(p2);
         suite.push_back(p2);
     }
@@ -606,11 +599,13 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
 mesh create_tree()
 {
 
+    srand(2018);
+
     mesh m;
     int steps = 3;
     int nbBranch = 4;
 
-    float height = 6.0f;
+    float height = 0.6f;
 
     vec3 p1 = vec3(0, 0, 0);
     vec3 p2 = vec3(0, 0, height);
@@ -628,55 +623,68 @@ mesh create_tree()
     return m;
 }
 
-mesh create_tree_foliage()
+mesh create_cone(float radius, float height, float z_offset)
 {
     mesh m;
 
+    // conical structure
+    // *************************** //
 
-    int steps = 3;
-    int nbBranch = 4;
+    const size_t N = 20;
 
-    float height = 6.0f;
-    int N = 10;
-    vec3 p = vec3(0, 0, height);
-    float angle = (rand() % 360) / 360.0f;
-
-    std::vector<vcl::vec3> listp = branch_tip(p, height, nbBranch, steps, angle);
-
-    vec3 p1 = { 1.0f, 1.0f, 0.0f };
-    vec3 p2 = { 1.0f, -1.0f, 0.0f };
-    vec3 p3 = { -1.0f, -1.0f, 0.0f };
-    vec3 p4 = { -1.0f, 1.0f, 0.0f };
-
-
-    for (unsigned long i = nbBranch*2; i < listp.size() - 1;)
+    // geometry
+    for (size_t k = 0; k < N; ++k)
     {
-        vec3 l = listp.at(i) - listp.at(i + 1);
-
-        for (int n = 0; n < N; n++)
-        {
-            float u = (1.0f * n) / N;
-
-            mat3 R = rotation_from_axis_angle_mat3({ 0, 0, 1 }, (rand() % 360) / 360.0f) * rotation_from_axis_angle_mat3({ 1, 0, 0 }, (rand() % 360) / 360.0f);
-            mesh quad = create_quad(listp.at(i + 1) + u * l + R *p1, listp.at(i + 1) + u * l + R * p2,listp.at(i + 1) + u * l + R * p3,listp.at(i + 1) + u * l + R * p4);
-
-            m.push_back(quad);
-        }
-
-
-        i = i + 2;
+        const float u = k / float(N);
+        const vec3 p = {radius * std::cos(2 * 3.14f * u), radius * std::sin(2 * 3.14f * u), 0.0f};
+        m.position.push_back(p + vec3{0, 0, z_offset});
     }
+    // apex
+    m.position.push_back({0, 0, height + z_offset});
+
+    // connectivity
+    const unsigned int Ns = N;
+    for (unsigned int k = 0; k < Ns; ++k)
+    {
+        m.connectivity.push_back({k, (k + 1) % Ns, Ns});
+    }
+
+    // close the bottom of the cone
+    // *************************** //
+
+    // Geometry
+    for (size_t k = 0; k < N; ++k)
+    {
+        const float u = k / float(N);
+        const vec3 p = {radius * std::cos(2 * 3.14f * u), radius * std::sin(2 * 3.14f * u), 0.0f};
+        m.position.push_back(p + vec3{0, 0, z_offset});
+    }
+    // central position
+    m.position.push_back({0, 0, z_offset});
+
+    // connectivity
+    for (unsigned int k = 0; k < Ns; ++k)
+        m.connectivity.push_back({k + Ns + 1, (k + 1) % Ns + Ns + 1, 2 * Ns + 1});
+
+    return m;
+}
+
+mesh create_tree_foliage(float radius, float height, float z_offset)
+{
+    mesh m = create_cone(radius, height, 0);
+    m.push_back(create_cone(radius, height, z_offset));
+    m.push_back(create_cone(radius, height, 2 * z_offset));
 
     return m;
 }
 std::vector<vcl::vec3> update_tree_position()
 {
 
-    int nbArbre = 200;
+    int nbArbre = 50;
     std::vector<vcl::vec3> pos;
     srand(6095);
-    const float u = (rand() % 100) / 100.0f;
-    const float v = (rand() % 100) / 100.0f;
+    const float u = (rand() % 100) / 200.0f;
+    const float v = (rand() % 100) / 200.0f;
     pos.push_back(evaluate_terrain(u, v));
     int i = 1;
     while (i < nbArbre)
