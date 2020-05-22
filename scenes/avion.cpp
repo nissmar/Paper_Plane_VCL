@@ -358,12 +358,12 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //variables
     const float m = 0.05f;              //masse : ne pas trop changer
     const float I = 0.01f;              //moment d'inertie
-    const float aero_coeff = 1.0f;      //"portance"
+    const float aero_coeff = 2000.0f;      //"portance"
     const float thrust_coeff = pphy.boost;   //poussée
-    const float drag_coeff = 0.001f;
-    const float M_wing = 1.0f;          //coefficient du moment des ailes
+    const float drag_coeff = 0.001f;        //coeff de frottements
+    const float M_wing = 0.7f;          //coefficient du moment des ailes
     const float flap_wing_ratio = 0.3f; //rapport entre le coeff des flaps et des ailes
-    const float rot_drag = 0.8f;
+    const float rot_drag = 1.0f;        //modélise le frottement de l'air sur l'avion
     const vec3 gravity = {0, -9.81f, 0};
 
     //vecteurs utiles
@@ -373,6 +373,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     const vec3 lateral = pphy.r * global_z;   //vecteur latéral
     const vec3 normal = pphy.r * global_y;    //vecteur normal
     const vec3 direction = pphy.r * global_x; //vecteur de direction
+    float volume_tranche = dot(-pphy.v, normal)/norm(pphy.v)*dt;
     float penetration = dot(-pphy.v, normal); //"rebond" de l'air sur l'aile
 
     //rotation
@@ -386,7 +387,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
 
     //translation
     const vec3 Weight = m * gravity;
-    const vec3 Aero = aero_coeff * penetration * normal;
+    const vec3 Aero = aero_coeff * penetration * volume_tranche * normal;
     const vec3 Thrust = (thrust_coeff - drag_coeff*norm(pphy.v)*norm(pphy.v))* direction;
     const vec3 Ft = Weight + Aero + Thrust;
     pphy.v += dt * Ft / m;
