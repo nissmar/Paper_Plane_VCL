@@ -37,7 +37,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     //initialisation de la caméra et du modèle physique
     init_phy_cam(pphy, cphy);
     cphy.draw_skybox = true;
-    cphy.draw_tree_texture = true;
+    cphy.draw_tree_texture = false;
     scene.camera.translation = cphy.p;
     scene.camera.orientation = cphy.r;
 
@@ -70,6 +70,37 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     skybox.uniform.shading.ambiant = 1.0f;
     skybox_texture_id = create_texture_gpu(image_load_png("scenes/textures/skybox.png"));
     timer.stop();
+
+
+    //création des objectifs
+    tore = mesh_drawable(mesh_primitive_torus(1.5f,0.5f));
+    tore_current_i = 0;
+    tore.uniform.color = { 1.0f, 1.0f,0.0f};
+    tore_position = {evaluate_terrain(0.6f,rand_interval(0.49f,0.51f))};
+    tore_position[0][1] += 15.0f;
+    tore_rotation = {M_PI/2.0f};
+    float x;
+    float y;
+    float r = 10.0f;
+    for (int i=1; i<10;i++){
+        vcl::vec3 pos; 
+        bool searching = true;
+        while (searching){
+            searching = false;
+            x = rand_interval(0.4f,0.6f);
+            y = rand_interval(0.4f,0.6f);
+            pos = evaluate_terrain(x,y);
+
+            if ((tore_position[i-1].x-pos.x)*(tore_position[i-1].x-pos.x)+(tore_position[i-1].y-pos.y)*(tore_position[i-1].y-pos.y) < r*r){
+                searching = true;
+            }
+        }
+        tore_position.push_back(pos);
+        tore_position[i][1] += 10.0f +10*rand_interval(0,1);
+        tore_rotation.push_back(rand_interval(0,M_PI));
+    }
+    std::cout << tore_position[0] <<std::endl;
+
 }
 
 void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_structure &scene, gui_structure &)
@@ -144,8 +175,18 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     glBindTexture(GL_TEXTURE_2D, scene.texture_white);
 
 
+    //pour l'objectif
+    
+    tore.uniform.transform.translation = tore_position[tore_current_i];
+    tore.uniform.transform.rotation = rotation_from_axis_angle_mat3({0, 1, 0}, tore_rotation[tore_current_i]);
+    draw(tore, scene.camera, shaders["mesh"]);
+    if (norm(tore_position[tore_current_i]-pphy.p) < 2.0f) {
+        tore_current_i ++;
+        if (tore_current_i >= tore_position.size()) tore_current_i = 0;
+    }
+
+
     //pour les arbres
-   
     for (vec3 pi : tree_position)
     {
         trunk.uniform.transform.translation = pi;
@@ -385,9 +426,6 @@ mesh create_quad(vec3 p1, vec3 p2, vec3 p3, vec3 p4)
     float y2 = std::sqrt(norm(p4 - p1) * norm(p4 - p1) - x2 * x2);
     x2 /= norm(p3 - p1);
     y2 /= norm(p3 - p1);
-    std::cout << x1 << "    " << y1 << std::endl;
-    std::cout << x2 << "    " << y2 << std::endl;
-    std::cout << std::endl;
 
     q.texture_uv[0] = {0.0f, 0.5f};
     q.texture_uv[1] = {x1, 0.5f + y1};
@@ -432,21 +470,18 @@ vcl::hierarchy_mesh_drawable create_plane()
     vec3 p6 = {-0.06, height, 0.05f};
     vec3 p7 = {-0.06, height, wing_back - 0.05f};
     mesh_drawable sideR = mesh_drawable(mesh_primitive_quad(p0, p1, p2, p3));
-    // mesh_drawable sideR =create_quad(p3,p2,p1,p0);
     sideR.uniform.shading.ambiant = diffuse;
 
     planem.add(sideR, "sideR", "body");
     planem.add(sideR, "sideL", "body");
 
     mesh_drawable wing = mesh_drawable(mesh_primitive_quad(p2, p3, p4, p5));
-    // mesh_drawable wing = create_quad(p2,p3,p4,p5);
     wing.uniform.shading.ambiant = diffuse;
 
     planem.add(wing, "wingR", "sideR");
     planem.add(wing, "wingL", "sideL");
 
     mesh_drawable flap = mesh_drawable(mesh_primitive_quad(p4, p3, p6, p7));
-    // mesh_drawable flap = create_quad(p4,p3,p6,p7);
     flap.uniform.shading.ambiant = diffuse;
 
     planem.add(flap, "flapL", "wingL");

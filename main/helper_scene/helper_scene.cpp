@@ -91,7 +91,6 @@ void update_fps_title(GLFWwindow* window, const std::string& title, glfw_fps_cou
     {
         const std::string new_window_title = title+" ("+std::to_string(fps_counter.fps())+" fps)";
         glfwSetWindowTitle(window, new_window_title.c_str());
-        std::cout<<fps_counter.fps()<<std::endl;
 
         fps_counter.reset();
     }

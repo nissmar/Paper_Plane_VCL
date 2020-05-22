@@ -57,6 +57,13 @@ struct scene_model : scene_base
     //skybox 
     vcl::mesh_drawable skybox;
     GLuint skybox_texture_id;
+
+    //objectif 
+    std::vector<vcl::vec3> tore_position;
+    unsigned int tore_current_i;
+    std::vector<float> tore_rotation;
+    vcl::mesh_drawable tore;
+
 };
 
 

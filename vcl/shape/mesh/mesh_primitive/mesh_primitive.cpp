@@ -165,7 +165,7 @@ mesh mesh_primitive_torus(float R, float r, const vec3& center, const vec3& axis
             const vec2 uv = {u,v};
 
             shape.position.push_back( Rotation*p0+center );
-            shape.normal.push_back( n );
+            shape.normal.push_back( -n );
             shape.texture_uv.push_back(uv);
         }
     }
