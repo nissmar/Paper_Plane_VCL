@@ -130,7 +130,7 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     {
         dt = t - last_t;
     }
-    const int steps = 4; //plusieurs étapes sont simulées pour une animation plus fluide
+    const int steps = 10; //plusieurs étapes sont simulées pour une animation plus fluide
     for (int i = 0; i < steps; i++) {
         physic_model(pphy, cphy, dt / steps);
     }
@@ -360,6 +360,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     const float I = 0.01f;              //moment d'inertie
     const float aero_coeff = 1.0f;      //"portance"
     const float thrust_coeff = pphy.boost;   //poussée
+    const float drag_coeff = 0.001f;
     const float M_wing = 1.0f;          //coefficient du moment des ailes
     const float flap_wing_ratio = 0.3f; //rapport entre le coeff des flaps et des ailes
     const float rot_drag = 0.8f;
@@ -386,7 +387,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //translation
     const vec3 Weight = m * gravity;
     const vec3 Aero = aero_coeff * penetration * normal;
-    const vec3 Thrust = thrust_coeff * direction;
+    const vec3 Thrust = (thrust_coeff - drag_coeff*norm(pphy.v)*norm(pphy.v))* direction;
     const vec3 Ft = Weight + Aero + Thrust;
     pphy.v += dt * Ft / m;
     pphy.p += pphy.v * dt;
@@ -397,7 +398,6 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     cphy.r = rotation_from_axis_angle_mat3(global_z, pphy.w[2] * dt) * cphy.r;
     cphy.r = rotation_from_axis_angle_mat3(global_y, pphy.w[1] * dt) * cphy.r;
     cphy.r = rotation_from_axis_angle_mat3(global_x, pphy.w[0] * dt) * cphy.r;
-
 }
 
 mesh create_quad(vec3 p1, vec3 p2, vec3 p3, vec3 p4)
