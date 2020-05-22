@@ -73,6 +73,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
 
 
     //création des objectifs
+    score = 0;
     tore = mesh_drawable(mesh_primitive_torus(1.5f,0.5f));
     tore_current_i = 0;
     tore.uniform.color = { 1.0f, 1.0f,0.0f};
@@ -130,7 +131,7 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     {
         dt = t - last_t;
     }
-    const int steps = 10; //plusieurs étapes sont simulées pour une animation plus fluide
+    const int steps = 4; //plusieurs étapes sont simulées pour une animation plus fluide
     for (int i = 0; i < steps; i++) {
         physic_model(pphy, cphy, dt / steps);
     }
@@ -175,15 +176,8 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     glBindTexture(GL_TEXTURE_2D, scene.texture_white);
 
 
-    //pour l'objectif
     
-    tore.uniform.transform.translation = tore_position[tore_current_i];
-    tore.uniform.transform.rotation = rotation_from_axis_angle_mat3({0, 1, 0}, tore_rotation[tore_current_i]);
-    draw(tore, scene.camera, shaders["mesh"]);
-    if (norm(tore_position[tore_current_i]-pphy.p) < 2.0f) {
-        tore_current_i ++;
-        if (tore_current_i >= tore_position.size()) tore_current_i = 0;
-    }
+   
 
 
     //pour les arbres
@@ -234,6 +228,32 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         scene.camera.orientation = rotation_from_axis_angle_mat3(scene.camera.orientation*dir, vert_rot)*scene.camera.orientation;
     }
 
+
+    //pour l'objectif
+    tore.uniform.transform.translation = tore_position[tore_current_i];
+    tore.uniform.transform.scaling = 1.0f;
+
+    tore.uniform.transform.rotation = rotation_from_axis_angle_mat3({0, 1, 0}, tore_rotation[tore_current_i]);
+    draw(tore, scene.camera, shaders["mesh"]);
+    if (norm(tore_position[tore_current_i]-pphy.p) < 2.0f) {
+        tore_current_i ++;
+        score ++;
+        if (tore_current_i >= tore_position.size()) tore_current_i = 0;
+    }
+
+    vcl::vec3 tr;
+    vcl::vec3 norm = {0,1.0f,0};
+    tore.uniform.transform.rotation = rotation_from_axis_angle_mat3(scene.camera.orientation*norm,t)*scene.camera.orientation;
+    tore.uniform.transform.scaling = 0.01f;
+    std::cout << cphy.p + scene.camera.orientation*tr <<  std::endl;
+    std::cout << pphy.p << std::endl;
+    for (int j=0; j<score; j++) {
+        tr = {1.0f + j/50.0f,1.0f,0};
+        tore.uniform.transform.translation = -scene.camera.translation + scene.camera.orientation*tr;
+        draw(tore, scene.camera, shaders["mesh"]);
+
+    }
+    
     skybox.uniform.transform.translation = -scene.camera.translation;
    
 }
@@ -358,12 +378,13 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     //variables
     const float m = 0.05f;              //masse : ne pas trop changer
     const float I = 0.01f;              //moment d'inertie
-    const float aero_coeff = 2000.0f;      //"portance"
+    const float aero_coeff = 1.0f;      //"portance"
     const float thrust_coeff = pphy.boost;   //poussée
-    const float drag_coeff = 0.001f;        //coeff de frottements
-    const float M_wing = 0.7f;          //coefficient du moment des ailes
+    const float drag_coeff = 0.01f;        //coeff de frottements
+
+    const float M_wing = 1.0f;          //coefficient du moment des ailes
     const float flap_wing_ratio = 0.3f; //rapport entre le coeff des flaps et des ailes
-    const float rot_drag = 1.0f;        //modélise le frottement de l'air sur l'avion
+    const float rot_drag = 0.8f;
     const vec3 gravity = {0, -9.81f, 0};
 
     //vecteurs utiles
@@ -373,7 +394,6 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     const vec3 lateral = pphy.r * global_z;   //vecteur latéral
     const vec3 normal = pphy.r * global_y;    //vecteur normal
     const vec3 direction = pphy.r * global_x; //vecteur de direction
-    float volume_tranche = dot(-pphy.v, normal)/norm(pphy.v)*dt;
     float penetration = dot(-pphy.v, normal); //"rebond" de l'air sur l'aile
 
     //rotation
@@ -387,8 +407,8 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
 
     //translation
     const vec3 Weight = m * gravity;
-    const vec3 Aero = aero_coeff * penetration * volume_tranche * normal;
-    const vec3 Thrust = (thrust_coeff - drag_coeff*norm(pphy.v)*norm(pphy.v))* direction;
+    const vec3 Aero = aero_coeff * penetration * normal;
+    const vec3 Thrust = (thrust_coeff - drag_coeff*drag_coeff*drag_coeff*norm(pphy.v)*norm(pphy.v)*norm(pphy.v))* direction;
     const vec3 Ft = Weight + Aero + Thrust;
     pphy.v += dt * Ft / m;
     pphy.p += pphy.v * dt;
@@ -399,6 +419,7 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
     cphy.r = rotation_from_axis_angle_mat3(global_z, pphy.w[2] * dt) * cphy.r;
     cphy.r = rotation_from_axis_angle_mat3(global_y, pphy.w[1] * dt) * cphy.r;
     cphy.r = rotation_from_axis_angle_mat3(global_x, pphy.w[0] * dt) * cphy.r;
+
 }
 
 mesh create_quad(vec3 p1, vec3 p2, vec3 p3, vec3 p4)

@@ -63,6 +63,7 @@ struct scene_model : scene_base
     unsigned int tore_current_i;
     std::vector<float> tore_rotation;
     vcl::mesh_drawable tore;
+    int score;
 
 };
 
