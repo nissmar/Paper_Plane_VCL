@@ -77,7 +77,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     tore = mesh_drawable(mesh_primitive_torus(1.5f,0.5f));
     tore_current_i = 0;
     tore.uniform.color = { 1.0f, 1.0f,0.0f};
-    tore_position = {evaluate_terrain(0.6f,rand_interval(0.49f,0.51f))};
+    tore_position = {evaluate_terrain(0.58f,rand_interval(0.49f,0.51f))};
     tore_position[0][1] += 15.0f;
     tore_rotation = {M_PI/2.0f};
     float x;
@@ -100,7 +100,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
         tore_position[i][1] += 10.0f +10*rand_interval(0,1);
         tore_rotation.push_back(rand_interval(0,M_PI));
     }
-    std::cout << tore_position[0] <<std::endl;
+    // std::cout << tore_position[0] <<std::endl;
 
 }
 
@@ -233,7 +233,7 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     tore.uniform.transform.translation = tore_position[tore_current_i];
     tore.uniform.transform.scaling = 1.0f;
 
-    tore.uniform.transform.rotation = rotation_from_axis_angle_mat3({0, 1, 0}, tore_rotation[tore_current_i]);
+    tore.uniform.transform.rotation = rotation_from_axis_angle_mat3({0,1.0f,0},t)*rotation_from_axis_angle_mat3({0, 1, 0}, tore_rotation[tore_current_i]);
     draw(tore, scene.camera, shaders["mesh"]);
     if (norm(tore_position[tore_current_i]-pphy.p) < 2.0f) {
         tore_current_i ++;
@@ -245,8 +245,6 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     vcl::vec3 norm = {0,1.0f,0};
     tore.uniform.transform.rotation = rotation_from_axis_angle_mat3(scene.camera.orientation*norm,t)*scene.camera.orientation;
     tore.uniform.transform.scaling = 0.01f;
-    std::cout << cphy.p + scene.camera.orientation*tr <<  std::endl;
-    std::cout << pphy.p << std::endl;
     for (int j=0; j<score; j++) {
         tr = {1.0f + j/50.0f,1.0f,0};
         tore.uniform.transform.translation = -scene.camera.translation + scene.camera.orientation*tr;
@@ -272,7 +270,7 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
     }
     else if (key==66) {
         if (action == 1) {
-            pphy.boost = 0.5f;
+            pphy.boost = 0.2f;
             vec3 boostcolor =  {1.0f,0.7f,0.3f};
             plane["flapR"].element.uniform.color = boostcolor;
             plane["wingR"].element.uniform.color = boostcolor;
