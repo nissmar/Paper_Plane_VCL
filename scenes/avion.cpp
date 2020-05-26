@@ -14,8 +14,9 @@ static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy
 //avion
 void init_phy_cam(plane_physics &pphy, camera_physics &cphy);
 void physic_model(plane_physics &pphy, camera_physics &cphy, float dt);
-mesh create_quad(vec3 p1, vec3 p2, vec3 p3, vec3 p4);
 vcl::hierarchy_mesh_drawable create_plane();
+mesh create_propeller();
+
 
 //arbres
 float evaluate_terrain_z(float u, float v);
@@ -33,11 +34,11 @@ mesh create_skybox();
 
 void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_structure &scene, gui_structure &)
 {
-    scene.camera.perspective.z_far = 2000.0f;
     //initialisation de la caméra et du modèle physique
     init_phy_cam(pphy, cphy);
     cphy.draw_skybox = true;
     cphy.draw_tree_texture = false;
+    scene.camera.perspective.z_far = 2000.0f;
     scene.camera.translation = cphy.p;
     scene.camera.orientation = cphy.r;
 
@@ -45,22 +46,22 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     plane = create_plane();
     plane.set_shader_for_all_elements(shaders["mesh"]);
     plane_texture_id = create_texture_gpu(image_load_png("scenes/textures/plane.png"));
+    propeller = create_propeller();
+    prop_active = false;
 
-
-    //creation du décor (arbres, terrain...)
+    //creation terrain
     terrain = create_terrain();
-    // terrain.uniform.color = { 0.6f,0.85f,0.5f };
     terrain.uniform.shading.specular = 0.0f; // non-specular terrain material
     texture_id = create_texture_gpu(image_load_png("scenes/textures/grass.png"));
+
+    //création des arbres
     tree_position = update_tree_position();
     trunk = create_tree();
     trunk.uniform.color = {0.38f, 0.2f, 0.07f};
     trunk.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
-    
 	foliage = create_tree_foliage();
     foliage.uniform.color = { 1.0f, 1.0f, 1.0f};
     foliage.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
-
 	foliage_texture_id = create_texture_gpu(image_load_png("scenes/textures/leaves.png"));
 
     //creation de la skybox
@@ -83,7 +84,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     float x;
     float y;
     float r = 10.0f;
-    for (int i=1; i<10;i++){
+    for (int i=1; i<100;i++){
         vcl::vec3 pos; 
         bool searching = true;
         while (searching){
@@ -91,7 +92,6 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
             x = rand_interval(0.4f,0.6f);
             y = rand_interval(0.4f,0.6f);
             pos = evaluate_terrain(x,y);
-
             if ((tore_position[i-1].x-pos.x)*(tore_position[i-1].x-pos.x)+(tore_position[i-1].y-pos.y)*(tore_position[i-1].y-pos.y) < r*r){
                 searching = true;
             }
@@ -100,7 +100,6 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
         tore_position[i][1] += 10.0f +10*rand_interval(0,1);
         tore_rotation.push_back(rand_interval(0,M_PI));
     }
-    // std::cout << tore_position[0] <<std::endl;
 
 }
 
@@ -145,16 +144,26 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         plane["body"].transform.rotation = pphy.r;
 
     }
-    
     timer.update();
     set_gui(timer,pphy,cphy);
     plane.update_local_to_global_coordinates();
 
+    //dessin de l'avion
     glBindTexture(GL_TEXTURE_2D, plane_texture_id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     draw(plane, scene.camera);
     last_t = t;
+    if (prop_active) {
+        float speed = 20.0f;        
+        propeller.uniform.transform.translation = pphy.p+pphy.r*flap_t;
+        mat4 Totprop = mat4::from_mat3(pphy.r)* mat4::from_mat3(rotation_from_axis_angle_mat3({1, 0, 0}, speed*t));
+        propeller.uniform.transform.rotation = Totprop.mat3();
+        draw(propeller, scene.camera, shaders["mesh"]);
+        Totprop = mat4::from_mat3(pphy.r)* mat4::from_mat3(rotation_from_axis_angle_mat3({1, 0, 0}, speed*t+M_PI/2));
+        propeller.uniform.transform.rotation = Totprop.mat3();
+        draw(propeller, scene.camera, shaders["mesh"]);
+    }
 
     //Pour le terrain
     glEnable(GL_POLYGON_OFFSET_FILL); // avoids z-fighting when displaying wireframe
@@ -175,18 +184,12 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
 
     glBindTexture(GL_TEXTURE_2D, scene.texture_white);
 
-
-    
-   
-
-
     //pour les arbres
     for (vec3 pi : tree_position)
     {
         trunk.uniform.transform.translation = pi;
         draw(trunk, scene.camera, shaders["mesh"]);
     }
-
     if (cphy.draw_tree_texture) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -198,7 +201,6 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         }
     }
     glDepthMask(true);
-
     glBindTexture(GL_TEXTURE_2D, scene.texture_white);
 
     //Pour la caméra
@@ -241,12 +243,14 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
         if (tore_current_i >= tore_position.size()) tore_current_i = 0;
     }
 
+    //pour le score
     vcl::vec3 tr;
     vcl::vec3 norm = {0,1.0f,0};
     tore.uniform.transform.rotation = rotation_from_axis_angle_mat3(scene.camera.orientation*norm,t)*scene.camera.orientation;
     tore.uniform.transform.scaling = 0.01f;
     for (int j=0; j<score; j++) {
-        tr = {1.0f + j/50.0f,1.0f,0};
+        int number = 30.0f;
+        tr = {1.0f + (j%number)/50.0f,1.0f-((j/number-(j/number)%1))/30.0f,0};
         tore.uniform.transform.translation = -scene.camera.translation + scene.camera.orientation*tr;
         draw(tore, scene.camera, shaders["mesh"]);
 
@@ -271,18 +275,11 @@ void scene_model::keyboard_input(scene_structure&, GLFWwindow*, int key, int, in
     else if (key==66) {
         if (action == 1) {
             pphy.boost = 0.2f;
-            vec3 boostcolor =  {1.0f,0.7f,0.3f};
-            plane["flapR"].element.uniform.color = boostcolor;
-            plane["wingR"].element.uniform.color = boostcolor;
-            plane["flapL"].element.uniform.color = boostcolor;
-            plane["wingL"].element.uniform.color = boostcolor;
+            prop_active = true;
         }
         else if (action == 0) {
             pphy.boost = 0.0f;
-            plane["flapR"].element.uniform.color = {1.0f,1.0f,1.0};
-            plane["wingR"].element.uniform.color = {1.0f,1.0f,1.0};
-            plane["flapL"].element.uniform.color = {1.0f,1.0f,1.0};
-            plane["wingL"].element.uniform.color = {1.0f,1.0f,1.0};
+            prop_active = false;
         }
     }
     else if (key==257) {
@@ -322,7 +319,7 @@ static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy
     ImGui::Text(" ");
     ImGui::Text("Quality settings: "); 
     ImGui::Checkbox("Skybox", &cphy.draw_skybox); ImGui::SameLine(); 
-    ImGui::Checkbox("Tree texture", &cphy.draw_tree_texture);  
+    ImGui::Checkbox("Tree foliage", &cphy.draw_tree_texture);  
     ImGui::Text(" ");
     // Start and stop animation
     ImGui::Text("Animation: "); 
@@ -338,10 +335,6 @@ static void set_gui(timer_basic &timer,plane_physics &pphy, camera_physics &cphy
     if (ImGui::Button("Reset")) {
         init_phy_cam(pphy, cphy);
     }  
-
-
-   
-
 }
 
 
@@ -355,7 +348,7 @@ void init_phy_cam(plane_physics &pphy, camera_physics &cphy)
     pphy.alphaR = 3.14f / 8;
     pphy.boost = 0.0f;
     pphy.p = {50.0f, 0, 0};
-    pphy.v = {10.0f, 0.0f, 0};
+    pphy.v = {5.0f, 0.0f, 0};
     pphy.w = {0, 0, 0};
     pphy.r = rotation_from_axis_angle_mat3({0, 0, 1}, pitch)*rotation_from_axis_angle_mat3({0, 1, 0}, yaw);
 
@@ -420,58 +413,18 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
 
 }
 
-mesh create_quad(vec3 p1, vec3 p2, vec3 p3, vec3 p4)
-{
 
-    vec3 dp = cross(p2 - p1, p3 - p1);
-    dp /= norm(dp) * 10000;
-    mesh q; // temporary terrain storage (CPU only)
-    q.position.resize(8);
-    q.texture_uv.resize(8);
-    q.position[0] = p1;
-    q.position[1] = p2;
-    q.position[2] = p3;
-    q.position[3] = p4;
-    q.position[4] = p1 - dp;
-    q.position[5] = p2 - dp;
-    q.position[6] = p3 - dp;
-    q.position[7] = p4 - dp;
-
-    float x1 = dot(p3 - p1, p2 - p1) / norm(p3 - p1);
-    float y1 = std::sqrt(norm(p2 - p1) * norm(p2 - p1) - x1 * x1);
-    x1 /= norm(p3 - p1);
-    y1 /= norm(p3 - p1);
-
-    float x2 = dot(p3 - p1, p4 - p1) / norm(p3 - p1);
-    float y2 = std::sqrt(norm(p4 - p1) * norm(p4 - p1) - x2 * x2);
-    x2 /= norm(p3 - p1);
-    y2 /= norm(p3 - p1);
-
-    q.texture_uv[0] = {0.0f, 0.5f};
-    q.texture_uv[1] = {x1, 0.5f + y1};
-    q.texture_uv[2] = {1.0f, 0.5f};
-    q.texture_uv[3] = {x2, 0.5f - y2};
-    q.texture_uv[4] = {0.0f, 0.5f};
-    q.texture_uv[5] = {x1, 0.5f + y1};
-    q.texture_uv[6] = {1.0f, 0.5f};
-    q.texture_uv[7] = {x2, 0.5f - y2};
-    // q.texture_uv[4] = {0.0f,0.0f};
-    // q.texture_uv[5] = {0.0f,1.0f};
-    // q.texture_uv[6] = {1.0f,1.0f};
-    // q.texture_uv[7] = {1.0f,0.0f};
-    // const uint3 triangle_1 = {0, 1, 2};
-    // const uint3 triangle_2 = {0,2,3};
-    // const uint3 triangle_1b = {6, 5, 4};
-    // const uint3 triangle_2b = {7,6,4};
-    // q.connectivity.push_back(triangle_1);
-    // q.connectivity.push_back(triangle_2);
-    // q.connectivity.push_back(triangle_1b);
-    // q.connectivity.push_back(triangle_2b);
-
-    q.connectivity = {{0, 1, 2}, {2, 3, 0}, {6, 5, 4}, {7, 6, 4}};
-
-    return q;
+mesh create_propeller() {
+    const float L = 0.2f;
+    const float l = 0.02f;
+    const float back = 0.3f;
+    vec3 p0 = {back, -L/2, -l/2};
+    vec3 p1 = {back, -L/2, l/2};
+    vec3 p2 = {back, L/2, l/2};
+    vec3 p3 = {back, L/2, -l/2};
+    return mesh_primitive_quad(p0, p1, p2, p3);
 }
+
 
 vcl::hierarchy_mesh_drawable create_plane()
 {
@@ -720,7 +673,7 @@ mesh create_tree_foliage()
             float u = (1.0f * n) / N;
 
             mat3 R = rotation_from_axis_angle_mat3({ 0, 0, 1 }, (rand() % 360) / 360.0f) * rotation_from_axis_angle_mat3({ 1, 0, 0 }, (rand() % 360) / 360.0f);
-            mesh quad = create_quad(listp.at(i + 1) + u * l + R *p1, listp.at(i + 1) + u * l + R * p2,listp.at(i + 1) + u * l + R * p3,listp.at(i + 1) + u * l + R * p4);
+            mesh quad = mesh_primitive_quad(listp.at(i + 1) + u * l + R *p1, listp.at(i + 1) + u * l + R * p2,listp.at(i + 1) + u * l + R * p3,listp.at(i + 1) + u * l + R * p4);
 
             m.push_back(quad);
         }
@@ -766,7 +719,6 @@ std::vector<vcl::vec3> update_tree_position()
 
     return pos;
 }
-
 
 mesh create_skybox() {
 

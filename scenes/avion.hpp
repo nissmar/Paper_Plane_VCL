@@ -42,6 +42,8 @@ struct scene_model : scene_base
 
     //avion
     vcl::hierarchy_mesh_drawable plane;
+    vcl::mesh_drawable propeller;
+    bool prop_active;
     struct plane_physics pphy;
     struct camera_physics cphy;
     GLuint plane_texture_id;
