@@ -53,9 +53,9 @@ struct scene_model : scene_base
     vcl::mesh_drawable trunk;
     vcl::mesh_drawable foliage;
     std::vector<vcl::vec3> tree_position;
-    //NEW
     std::vector<vcl::vec3> branches_pos;
     GLuint texture_id;
+    GLuint trunk_texture_id;
     GLuint  foliage_texture_id;
 
     //skybox 

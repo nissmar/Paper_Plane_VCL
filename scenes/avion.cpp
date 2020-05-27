@@ -62,6 +62,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
     trunk = create_tree(branches_pos);
     trunk.uniform.color = {0.38f, 0.2f, 0.07f};
     trunk.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
+    trunk_texture_id = create_texture_gpu(image_load_png("scenes/textures/trunk.png"));
 	foliage = create_tree_foliage();
     foliage.uniform.color = { 1.0f, 1.0f, 1.0f};
     foliage.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
@@ -603,7 +604,7 @@ mesh create_cylinder(vec3 p1, vec3 p2)
 
 std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps, float angle)
 {
-    srand(192);
+    
     std::vector<vcl::vec3> listp;
     std::vector<vcl::vec3> suite;
 
@@ -615,8 +616,9 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
             angle = (rand() % 360) / 360.0f;
             float h = (height / 1.618f);
             float r = pow(height * height - h * h, 0.5);
+            float angle2 = (rand() % 180) / 360.0f;
 
-            vec3 p2 = p + vec3{ r * std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h };
+            vec3 p2 = p + vec3{ r *std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h*(0.5f+0.7f*std::sin(2*3.14f*angle2)) };
 
             listp.push_back(p2);
         }
@@ -629,8 +631,9 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
         angle = (rand() % 360) / 360.0f;
         float h = height / 1.618f;
         float r = pow(height * height - h * h, 0.5);
+        float angle2 = (rand() % 180) / 360.0f;
 
-        vec3 p2 = p + vec3{r * std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h};
+        vec3 p2 = p + vec3{ r * std::cos(2 * 3.14f * angle), r * std::sin(2 * 3.14f * angle), h * (0.5f + 0.7f*std::sin(2 * 3.14f * angle2)) };
         listp.push_back(p2);
         suite.push_back(p2);
     }
@@ -649,6 +652,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
     return listp;
 }
 
+
 mesh create_tree(std::vector<vcl::vec3> &branches_pos)
 {
 
@@ -662,17 +666,14 @@ mesh create_tree(std::vector<vcl::vec3> &branches_pos)
     vec3 p2 = vec3(0, 0, height);
 
     m.push_back(create_cylinder(p1, p2));
-    //NEW 
     branches_pos.push_back(p1);
     branches_pos.push_back(p2);
-
+    srand(140);
     float angle = (rand() % 360) / 360.0f;
     std::vector<vcl::vec3> listp = branch_tip(p2, height, nbBranch, steps, angle);
     for (unsigned long i = 0; i < listp.size() - 1;)
     {
-
         m.push_back(create_cylinder(listp.at(i), listp.at(i + 1)));
-        //NEW 
         branches_pos.push_back(listp.at(i));
         branches_pos.push_back(listp.at(i+1));
         i = i + 2;
@@ -684,24 +685,25 @@ mesh create_tree_foliage()
 {
     mesh m;
 
-
-    int steps = 3;
+    int steps = 2;
     int nbBranch = 4;
 
     float height = 6.0f;
-    int N = 10;
+    int N = 4;
     vec3 p = vec3(0, 0, height);
+
+    srand(140);
     float angle = (rand() % 360) / 360.0f;
 
     std::vector<vcl::vec3> listp = branch_tip(p, height, nbBranch, steps, angle);
 
-    vec3 p1 = { 1.0f, 1.0f, 0.0f };
-    vec3 p2 = { 1.0f, -1.0f, 0.0f };
-    vec3 p3 = { -1.0f, -1.0f, 0.0f };
-    vec3 p4 = { -1.0f, 1.0f, 0.0f };
+    vec3 p1 = { 2.0f, 2.0f, 0.0f };
+    vec3 p2 = { 2.0f, -2.0f, 0.0f };
+    vec3 p3 = { -2.0f, -2.0f, 0.0f };
+    vec3 p4 = { -2.0f, 2.0f, 0.0f };
 
 
-    for (unsigned long i = nbBranch*2; i < listp.size() - 1;)
+    for (unsigned long i = 0; i < listp.size() - 1;)
     {
         vec3 l = listp.at(i) - listp.at(i + 1);
 
