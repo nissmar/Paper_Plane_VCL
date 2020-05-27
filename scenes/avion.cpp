@@ -22,7 +22,10 @@ mesh create_propeller();
 float evaluate_terrain_z(float u, float v);
 mesh create_terrain();
 mesh create_cylinder(vec3 p2, vec3 p1);
-mesh create_tree();
+mesh create_tree(std::vector<vcl::vec3> &branches_pos);
+//NEW
+bool collision(plane_physics &pphy, std::vector<vcl::vec3> &tree_position,std::vector<vcl::vec3> branches_pos);
+
 vec3 evaluate_terrain(float u, float v);
 mesh create_tree_foliage();
 std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps, float angle);
@@ -56,7 +59,7 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
 
     //création des arbres
     tree_position = update_tree_position();
-    trunk = create_tree();
+    trunk = create_tree(branches_pos);
     trunk.uniform.color = {0.38f, 0.2f, 0.07f};
     trunk.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
 	foliage = create_tree_foliage();
@@ -100,7 +103,6 @@ void scene_model::setup_data(std::map<std::string, GLuint> &shaders, scene_struc
         tore_position[i][1] += 10.0f +10*rand_interval(0,1);
         tore_rotation.push_back(rand_interval(0,M_PI));
     }
-
 }
 
 void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_structure &scene, gui_structure &)
@@ -134,9 +136,7 @@ void scene_model::frame_draw(std::map<std::string, GLuint> &shaders, scene_struc
     for (int i = 0; i < steps; i++) {
         physic_model(pphy, cphy, dt / steps);
     }
-    float u = pphy.p[0]/1000 + 0.5f;
-    float v = pphy.p[2]/1000 + 0.5f;
-    if (pphy.p[1] - evaluate_terrain_z(u,v) < 0.1f) {
+    if (collision(pphy, tree_position, branches_pos)) {
         timer.stop();
     }
     else {
@@ -413,6 +413,37 @@ void physic_model(plane_physics &pphy, camera_physics &cphy, float dt)
 
 }
 
+bool collision(plane_physics &pphy, std::vector<vcl::vec3> &tree_position, std::vector<vcl::vec3> branches_pos) {
+    float u = pphy.p[0]/1000 + 0.5f;
+    float v = pphy.p[2]/1000 + 0.5f;
+    if (pphy.p[1] - evaluate_terrain_z(u,v) < 0.1f) {
+        return true;
+    }
+    float r0 = 30.0f;
+    float r1;
+    vec3 branch;
+    vec3 link;
+    float scal;
+    mat3 rot = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
+    for (vec3 pi : tree_position)
+    {
+        if (norm(pi-pphy.p)<r0) {
+            for(std::vector<int>::size_type i = 0; i < branches_pos.size(); i+=2) {
+                r1 = 1.0f * exp(-branches_pos[i].z * branches_pos[i+1].z / 100);
+                branch = rot*(branches_pos[i+1]-branches_pos[i]);
+                link = pphy.p-(rot*branches_pos[i]+pi);
+                scal = dot(link,branch)/norm(branch);
+                if (scal>0 && scal<norm(branch)) {
+                    if ((norm(link)*norm(link)-scal*scal)<r1*r1) {
+                        return true;
+                    }
+                }
+            }
+            return false; //on ne peut être proche que d'un arbre à la fois
+        }
+    }
+    return false;
+}
 
 mesh create_propeller() {
     const float L = 0.2f;
@@ -618,7 +649,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps,
     return listp;
 }
 
-mesh create_tree()
+mesh create_tree(std::vector<vcl::vec3> &branches_pos)
 {
 
     mesh m;
@@ -631,6 +662,9 @@ mesh create_tree()
     vec3 p2 = vec3(0, 0, height);
 
     m.push_back(create_cylinder(p1, p2));
+    //NEW 
+    branches_pos.push_back(p1);
+    branches_pos.push_back(p2);
 
     float angle = (rand() % 360) / 360.0f;
     std::vector<vcl::vec3> listp = branch_tip(p2, height, nbBranch, steps, angle);
@@ -638,6 +672,9 @@ mesh create_tree()
     {
 
         m.push_back(create_cylinder(listp.at(i), listp.at(i + 1)));
+        //NEW 
+        branches_pos.push_back(listp.at(i));
+        branches_pos.push_back(listp.at(i+1));
         i = i + 2;
     }
     return m;
