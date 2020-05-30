@@ -32,6 +32,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps)
 //mesh create_tree_foliage(float radius, float height, float z_offset);
 std::vector<vcl::vec3> update_tree_position();
 
+
 //skybox
 mesh create_skybox();
 
@@ -673,7 +674,7 @@ mesh create_tree(std::vector<vcl::vec3>& branches_pos)
 
     mesh m;
     int steps = 2;
-    int nbBranch = 3;
+    int nbBranch = 4;
 
     float height = 6.0f;
 
@@ -683,7 +684,7 @@ mesh create_tree(std::vector<vcl::vec3>& branches_pos)
     m.push_back(create_cylinder(p1, p2));
     branches_pos.push_back(p1);
     branches_pos.push_back(p2);
-    srand(195 );
+    srand(195);
     std::vector<vcl::vec3> listp = branch_tip(p2, height, nbBranch, steps);
     for (unsigned long i = 0; i < listp.size() - 1;)
     {
@@ -700,7 +701,7 @@ mesh create_tree_foliage()
     mesh m;
 
     int steps = 2;
-    int nbBranch = 3;
+    int nbBranch = 4;
 
     float height = 6.0f;
     int N = 4;
@@ -744,38 +745,74 @@ mesh create_tree_foliage()
 
 std::vector<vcl::vec3> update_tree_position()
 {
+    std::cout << "Updating tree position..."<<std::endl;
 
-    int nbArbre = 150;
+    int nbgroupes = 19;
+    int arbrespargroupe = 8;
+    float darbres = 30.0f;
     std::vector<vcl::vec3> pos;
-    srand(6095);
-    const float u = (rand() % 100) / 100.0f;
-    const float v = (rand() % 100) / 100.0f;
-    pos.push_back(evaluate_terrain(u, v));
-    int i = 1;
-    while (i < nbArbre)
-    {
-        std::cout << i << "arbres sur " << nbArbre << std::endl;
-        const float u = (rand() % 100) / 100.0f;
-        const float v = (rand() % 100) / 100.0f;
+    std::vector<vcl::vec2> groups;
+    
+    srand(958);
+    
+    int i = 0;
+    while (i < nbgroupes) {
+
+        float u = ((rand() % 800)+100)/ 1000.0f;
+        float v = ((rand() % 800)+100)/ 1000.0f;
         int test = 1;
         for (vec3 p : pos)
         {
-            if (p.x * p.x + p.z * p.z - u * u - v * v < 10.0f)
+            vec3 ptest = evaluate_terrain(u, v);
+
+            if( (ptest.x-p.x)* (ptest.x - p.x) + (ptest.y - p.y)* (ptest.y - p.y) <darbres*darbres)
             {
                 test = 0;
                 break;
             }
-        }
+        }   
         if (test == 1)
         {
             pos.push_back(evaluate_terrain(u, v));
+            groups.push_back({ u, v });
             i = i + 1;
         }
-        pos.push_back(evaluate_terrain(u, v));
     }
+
+    
+    srand(3818);
+    for (vec2 c : groups) {
+        int i = 0;
+        while (i < arbrespargroupe) {
+            
+            const float u = c.x + ((rand() % 80)-40) / 1000.0f;
+            const float v = c.y + ((rand() % 80)-40) / 1000.0f;
+            int test = 1;
+            for (vec3 p : pos)
+            {
+                vec3 ptest = evaluate_terrain(u, v);
+                
+                if ((ptest.x - p.x) * (ptest.x - p.x) + (ptest.y - p.y) * (ptest.y - p.y) < darbres * darbres/100.0f)
+                {
+                    test = 0;
+                    break;
+                }
+            }
+            if (test == 1)
+            {
+                pos.push_back(evaluate_terrain(u, v));
+                i = i + 1;
+                
+            }
+        }
+    }
+    std::cout << "   [OK]" << std::endl;
+
+
 
     return pos;
 }
+
 
 mesh create_skybox() {
 
@@ -815,7 +852,6 @@ mesh create_skybox() {
 
     return skybox;
 }
-
 
 
 
