@@ -70,6 +70,9 @@ void scene_model::setup_data(std::map<std::string, GLuint>& shaders, scene_struc
     foliage = create_tree_foliage();
     foliage.uniform.color = { 1.0f, 1.0f, 1.0f };
     foliage.uniform.shading.specular = 0.0f;
+    foliage.uniform.shading.diffuse = 0.3f;
+    foliage.uniform.shading.ambiant = 0.4f;
+
     foliage.uniform.transform.rotation = rotation_from_axis_angle_mat3({ 1, 0, 0 }, -M_PI / 2);
     foliage_texture_id = create_texture_gpu(image_load_png("scenes/textures/leaves.png"));
 
@@ -199,21 +202,20 @@ void scene_model::frame_draw(std::map<std::string, GLuint>& shaders, scene_struc
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
-        
+        glBindTexture(GL_TEXTURE_2D, trunk_texture_id);
         for (vec3 pi : tree_position) {
-            glBindTexture(GL_TEXTURE_2D, trunk_texture_id);
             trunk.uniform.color = { 0.92f, 0.7f, 0.5f };
             trunk.uniform.transform.translation = pi;
             draw(trunk, scene.camera, shaders["mesh"]);
-            
-            glBindTexture(GL_TEXTURE_2D, foliage_texture_id);
-            foliage.uniform.transform.translation = pi;
-            glDepthMask(false);
-            draw(foliage, scene.camera, shaders["mesh"]);
-            glDepthMask(true);
-
-          
         }
+        glBindTexture(GL_TEXTURE_2D, foliage_texture_id);
+        glDepthMask(false);
+        for (vec3 pi : tree_position) {
+            foliage.uniform.transform.translation = pi;
+            draw(foliage, scene.camera, shaders["mesh"]);
+        }
+        glDepthMask(true);
+
     }
     else {
         for (vec3 pi : tree_position)
@@ -747,25 +749,23 @@ std::vector<vcl::vec3> update_tree_position()
 {
     std::cout << "Updating tree position..."<<std::endl;
 
-    int nbgroupes = 19;
-    int arbrespargroupe = 8;
-    float darbres = 30.0f;
+    int nbgroupes = 23;
+    int arbrespargroupe = 5;
+    float dgroup = 30.0f;
+    float darbres = 5.0f;
+
     std::vector<vcl::vec3> pos;
     std::vector<vcl::vec2> groups;
     
-    srand(958);
-    
     int i = 0;
     while (i < nbgroupes) {
-
-        float u = ((rand() % 800)+100)/ 1000.0f;
-        float v = ((rand() % 800)+100)/ 1000.0f;
+        float u = rand_interval(0, 1.0f);
+        float v = rand_interval(0, 1.0f); 
+        vec3 ptest = evaluate_terrain(u, v);
         int test = 1;
         for (vec3 p : pos)
         {
-            vec3 ptest = evaluate_terrain(u, v);
-
-            if( (ptest.x-p.x)* (ptest.x - p.x) + (ptest.y - p.y)* (ptest.y - p.y) <darbres*darbres)
+            if( (ptest.x-p.x)* (ptest.x - p.x) + (ptest.y - p.y)* (ptest.y - p.y) < dgroup*dgroup)
             {
                 test = 0;
                 break;
@@ -773,7 +773,7 @@ std::vector<vcl::vec3> update_tree_position()
         }   
         if (test == 1)
         {
-            pos.push_back(evaluate_terrain(u, v));
+            pos.push_back(ptest);
             groups.push_back({ u, v });
             i = i + 1;
         }
@@ -785,14 +785,14 @@ std::vector<vcl::vec3> update_tree_position()
         int i = 0;
         while (i < arbrespargroupe) {
             
-            const float u = c.x + ((rand() % 80)-40) / 1000.0f;
-            const float v = c.y + ((rand() % 80)-40) / 1000.0f;
+            const float u = c.x + (rand_interval(0, 0.08f) - 0.04f);
+            const float v = c.y + (rand_interval(0, 0.08f) - 0.04f);
             int test = 1;
             for (vec3 p : pos)
             {
                 vec3 ptest = evaluate_terrain(u, v);
                 
-                if ((ptest.x - p.x) * (ptest.x - p.x) + (ptest.y - p.y) * (ptest.y - p.y) < darbres * darbres/100.0f)
+                if ((ptest.x - p.x) * (ptest.x - p.x) + (ptest.y - p.y) * (ptest.y - p.y) < darbres * darbres)
                 {
                     test = 0;
                     break;
