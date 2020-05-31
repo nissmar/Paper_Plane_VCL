@@ -104,8 +104,8 @@ void scene_model::setup_data(std::map<std::string, GLuint>& shaders, scene_struc
         bool searching = true;
         while (searching) {
             searching = false;
-            x = rand_interval(0.4f, 0.6f);
-            y = rand_interval(0.4f, 0.6f);
+            x = rand_interval(0.2f, 0.8f);
+            y = rand_interval(0.2f, 0.8f);
             pos = evaluate_terrain(x, y);
             if ((tore_position[i - 1].x - pos.x) * (tore_position[i - 1].x - pos.x) + (tore_position[i - 1].y - pos.y) * (tore_position[i - 1].y - pos.y) < r * r) {
                 searching = true;
@@ -631,7 +631,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps)
         for (int i = 0; i < nbBranch; i++)
         {
             listp.push_back(p);
-            float angle = (rand() % 360) / 360.0f;
+            float angle = (i*1.0f/nbBranch) + (rand() % 20 - 10.0f) / 360.0f;
             float h = (height / 1.618f);
             float r = pow(height * height - h * h, 0.5);
             float angle2 = (rand() % 180) / 360.0f;
@@ -646,7 +646,7 @@ std::vector<vcl::vec3> branch_tip(vec3 p, float height, int nbBranch, int steps)
     for (int i = 0; i < nbBranch; i++)
     {
         listp.push_back(p);
-        float angle = (rand() % 360) / 360.0f;
+        float angle = (i*1.0f/nbBranch) + (rand() % 20 - 10.0f) / 360.0f;
         float h = height / 1.618f;
         float r = pow(height * height - h * h, 0.5);
         float angle2 = (rand() % 180) / 360.0f;
