@@ -1,2 +1,6 @@
 # Paper_Airplane_VCL
-Thibaut Vaillant & Nissim Maruani
+By Thibaut Vaillant & Nissim Maruani
+
+<img src="screenshot.png" width=500px>
+
+A  simple paper airplane simulator
